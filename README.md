@@ -1,2 +1,17 @@
-# Detyra1_AI
-Ky repository përdoret për qëllime studimore në lëndën Inteligjenca Artificiale. Ai përmban zgjidhjen e Detyrës së Parë, e cila është e ndarë në tre faza, duke demonstruar përdorimin e teknikave të painformuara të kërkimit (Uninformed Search Techniques).
+# Teknikat e Painformuara të Kërkimit (Uninformed Search Techniques)
+
+## Introductory Information
+
+<img src="https://github.com/user-attachments/assets/9002855f-3f97-4b41-a180-85d1e24ad34a" alt="University Logo" width="150" align="right"/>
+
+**University of Prishtina**  
+**Faculty of Computer and Software Engineering**  
+Master’s Program in **Computer and Software Engineering**  
+Course: **Artificial Intelligence**
+
+## Course Professors
+
+- **Avni Rexhepi**
+- **Adrian Ymeri**
+
+## Project Team Members (Group 14)
