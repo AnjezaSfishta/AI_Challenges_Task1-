@@ -1,0 +1,44 @@
+table {
+    border-collapse: collapse;
+    margin: 20px auto;
+}
+td {
+    border: 1px solid #333;
+}
+input.cell {
+    width: 40px;
+    height: 40px;
+    text-align: center;
+    font-size: 18px;
+}
+
+h1 {
+    color: #28a745;
+}
+
+button {
+    padding: 10px 18px;
+    font-size: 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #28a745;
+    color: white;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+.labels {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+#solveSection {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.back-container {
+    text-align: right;
+    margin-top: 20px;
+}
