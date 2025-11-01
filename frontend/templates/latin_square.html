@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Latin Square Solver</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='latin_square/latin_square.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Latin Square Solver</h1>
+        <p>Fill in the grid and solve using Backtracking or IDDFS.</p>
+
+        <div class="labels">   
+            <label>Grid Size (n × n):</label>
+            <input type="number" id="size" value="4" min="2" max="8">
+            <button id="generateBtn">Generate Board</button>
+        </div>
+        <div id="board"></div>
+
+        <!-- Hidden by default, shown after board is generated -->
+        <div id="solveSection" style="display: none; margin-top: 20px;">
+            <label>Algorithm:</label>
+            <select id="algorithm" onchange="toggleDepthInput()">
+                <option>Backtracking</option>
+                <option>IDDFS</option>
+            </select>
+
+            <div id="depthLimitContainer" style="display: none; margin-top: 10px;">
+                <label>Depth Limit (for IDDFS):</label>
+                <input type="number" id="depth_limit" placeholder="Optional" style="width: 80px;">
+            </div>
+
+            <button id="solveBtn">Solve</button>
+            <button id="checkBtn">Check My Solution</button>
+
+        </div>
+
+        <button class="back-btn" onclick="location.href='/'">Back to Home</button>
+
+        <div id="output"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='latin_square/latin_square.js') }}"></script>
+</body>
+</html>
