@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sudoku - Play</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='sudoku/sudoku.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <h1>Sudoku</h1>
+
+    <div class="level-select">
+      <label for="level">Zgjedh nivelin:</label>
+      <select id="level">
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+
+      <button id="generateBtn" class="btn">Generate</button>
+      <button id="solveBtn" class="btn">Solve with AI</button>
+      <button id="clearBtn" class="btn">Clear</button>
+      <button id="finishBtn" class="btn btn-secondary" disabled>Perfundo</button>
+    </div>
+
+    <div id="board" class="board"></div>
+
+    <div id="status" class="status"></div>
+    <div id="congrats" style="display:none; color: green; font-size: 18px; font-weight: 600; text-align: left; margin-top:8px;">
+      🎉 Urime! Sudoku-ja u zgjidh saktë.
+    </div>
+  </div>
+
+
+  <script src="{{ url_for('static', filename='sudoku/sudoku.js') }}"></script>
+</body>
+</html>
