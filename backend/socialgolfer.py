@@ -48,3 +48,21 @@ def can_schedule_weeks(num_players, group_size, target_weeks, algorithm, depth_l
     else:
         return backtrack([], history, players, group_size, target_weeks, depth_limit=depth_limit)
 
+def find_max_weeks(num_players, group_size, algorithm, depth_limit=None, max_attempt=10, progress_callback=None):
+    """Incrementally find the maximum number of feasible weeks."""
+    best_solution, best_weeks = None, 0
+    for w in range(1, max_attempt + 1):
+        if progress_callback:
+            progress_callback(w, max_attempt, f"⏳ Trying {w} weeks...")
+        schedule = can_schedule_weeks(num_players, group_size, w, algorithm, depth_limit)
+        if schedule:
+            best_solution, best_weeks = schedule, w
+            if progress_callback:
+                progress_callback(w, max_attempt, f"✅ {w} weeks possible!")
+        else:
+            if progress_callback:
+                progress_callback(w, max_attempt, f"⚠️ {w} weeks not possible — stopping.")
+            break
+    if progress_callback:
+        progress_callback(max_attempt, max_attempt, "🔍 Search completed.")
+    return best_solution, best_weeks
