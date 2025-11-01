@@ -17,3 +17,9 @@ def add_to_history(week, history):
     for group in week:
         for a, b in itertools.combinations(group, 2):
             history.add(tuple(sorted((a, b))))
+            
+def generate_random_week(players, group_size):
+    """Shuffle players into random groups."""
+    shuffled = players.copy()
+    random.shuffle(shuffled)
+    return [shuffled[i:i + group_size] for i in range(0, len(shuffled), group_size)]
