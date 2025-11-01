@@ -46,7 +46,9 @@ document.getElementById("solveBtn").addEventListener("click", async () => {
             return;
         }
 
-        let result = `Maximum Weeks Found: ${data.weeks}\n\n`;
+        let result = `Algorithm Used: ${algorithm}\n`;
+        result += `Solver Time: ${data.elapsed_time} seconds\n`;
+        result += `Maximum Weeks Found: ${data.weeks}\n\n`;
 
         data.schedule.forEach((week, i) => {
             result += `Week ${i + 1}:\n`;
