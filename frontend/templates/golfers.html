@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Social Golfers Problem Solver</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='socialgolfer/golfers.css') }}">
+
+</head>
+<body>
+    <div class="container">
+        <h1>Social Golfers Problem Solver</h1>
+        <p>Find the maximum number of weeks golfers can play without repeating pairings.</p>
+
+        <div class="form">
+            <label>Number of Players:</label>
+            <input type="number" id="num_players" value="32" min="4" step="4">
+
+            <label>Players per Group:</label>
+            <input type="number" id="group_size" value="4" min="2" max="8">
+
+            <label>Algorithm:</label>
+            <select id="algorithm">
+                <option>Depth-First Search (DFS)</option>
+                <option>Depth-Limited Search (DLS)</option>
+            </select>
+
+            <label>Depth Limit (for DLS):</label>
+            <input type="number" id="depth_limit" placeholder="Optional">
+
+            <button id="solveBtn">Run Solver</button>
+            <button class="back-btn" style="text-align: center"  onclick="location.href='/'">Back to Home</button>
+
+        </div>
+
+        <div id="output"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='socialgolfer/socialgolfers.js') }}"></script>
+</body>
+</html>
