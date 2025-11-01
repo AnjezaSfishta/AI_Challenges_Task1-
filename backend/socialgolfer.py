@@ -39,3 +39,12 @@ def backtrack(schedule, history, players, group_size, max_weeks, depth=0, depth_
             if result:
                 return result
     return None
+
+def can_schedule_weeks(num_players, group_size, target_weeks, algorithm, depth_limit=None):
+    players = list(range(num_players))
+    history = set()
+    if algorithm == "Depth-First Search (DFS)":
+        return backtrack([], history, players, group_size, target_weeks)
+    else:
+        return backtrack([], history, players, group_size, target_weeks, depth_limit=depth_limit)
+
