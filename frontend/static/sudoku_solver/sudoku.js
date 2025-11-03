@@ -1,4 +1,3 @@
-
 const API_BASE = ""; 
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -11,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const statusDiv   = document.getElementById("status");
   const congratsDiv = document.getElementById("congrats");
 
-  // ============= Helpers UI (status & buttons) =============
+
   function setStatus(msg, type = "") {
     statusDiv.classList.remove("error", "ok");
     if (type) statusDiv.classList.add(type);
@@ -30,7 +29,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-
   function setButtonsOnlyGenerate() {
     generateBtn.disabled = false;
     levelSelect.disabled = false;
@@ -39,7 +37,6 @@ document.addEventListener("DOMContentLoaded", () => {
     clearBtn.disabled  = true;
     finishBtn.disabled = true;
   }
-
 
   function setButtonsDefault() {
     generateBtn.disabled = false;
@@ -50,23 +47,20 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFinishState(); 
   }
 
-  // ============= Validim =============
+
   function boardComplete(board) {
     return board.every(row => row.every(v => Number.isInteger(v) && v >= 1 && v <= 9));
   }
 
-
   function validateBoard(board) {
     const errors = [];
     const inRange = v => Number.isInteger(v) && v >= 1 && v <= 9;
-
 
     for (let r = 0; r < 9; r++) {
       for (let c = 0; c < 9; c++) {
         if (!inRange(board[r][c])) errors.push({ r, c, reason: "empty_or_invalid" });
       }
     }
-
 
     for (let r = 0; r < 9; r++) {
       const pos = new Map();
@@ -80,7 +74,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-
     for (let c = 0; c < 9; c++) {
       const pos = new Map();
       for (let r = 0; r < 9; r++) {
@@ -92,7 +85,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } else pos.set(v, r);
       }
     }
-
 
     for (let br = 0; br < 3; br++) {
       for (let bc = 0; bc < 3; bc++) {
@@ -113,7 +105,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return { ok: errors.length === 0 && boardComplete(board), errors };
   }
 
-
   function updateFinishState() {
     if (!finishBtn) return;
     const board = readBoardFromUI();
@@ -121,7 +112,6 @@ document.addEventListener("DOMContentLoaded", () => {
     finishBtn.disabled = !allFilled;
   }
 
-  // ============= Grid & IO =============
   function createGrid() {
     boardDiv.innerHTML = "";
     for (let r = 0; r < 9; r++) {
@@ -203,13 +193,12 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFinishState();
   }
 
-  // ============= API calls =============
   async function generatePuzzle() {
     const level = levelSelect.value;
     setStatus("Generating puzzle...");
     clearHighlights();
     if (congratsDiv) congratsDiv.style.display = "none";
-    setButtonsDefault();
+    setButtonsDefault(); 
 
     try {
       const res = await fetch(`${API_BASE}/generate?level=${level}`);
@@ -230,7 +219,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const puzzle = readBoardFromUI();
     clearHighlights();
     setStatus("Solving...");
-
     finishBtn.disabled = true;
 
     try {
@@ -242,15 +230,23 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await res.json();
 
-      if (data.status === "ok") {
+      if (data.status === "unique" || data.status === "multiple") {
         setBoardToUI(data.solution, false);
-        setStatus("Solved by AI ✅", "ok");
+        setStatus(
+          data.status === "unique" ? "Solved (unique)" : "Solved (multiple)",
+          "ok"
+        );
         if (congratsDiv) congratsDiv.style.display = "block";
-        setButtonsOnlyGenerate(); 
+        setButtonsOnlyGenerate();
+      } else if (data.status === "unsolvable") {
+        setStatus("Unsolvable: 0 solutions.", "error");
+        setButtonsDefault();
+      } else if (data.status === "invalid") {
+        setStatus("Invalid puzzle: row/column/box conflicts.", "error");
+        setButtonsDefault();
       } else {
-        setStatus(`No solution: ${data.message || ""}`, "error");
-        if (congratsDiv) congratsDiv.style.display = "none";
-        setButtonsDefault(); 
+        setStatus(`Error: ${data.message || "backend error"}`, "error");
+        setButtonsDefault();
       }
     } catch (err) {
       setStatus("Error communicating with backend.", "error");
@@ -259,7 +255,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ============= Events =============
+
   generateBtn.addEventListener("click", generatePuzzle);
   solveBtn.addEventListener("click", solvePuzzle);
 
@@ -291,18 +287,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = validateBoard(board);
 
       if (result.ok) {
-        setStatus("🎉 U zgjidh saktë! Bravo!", "ok");
+        setStatus("U zgjidh saktë! Bravo!", "ok");
         if (congratsDiv) congratsDiv.style.display = "block";
-        setButtonsOnlyGenerate(); 
+        setButtonsOnlyGenerate();
       } else {
         const cells = result.errors.map(e => ({ r: e.r, c: e.c }));
         highlightCells(cells);
-        setStatus("❌ Ka gabime – korrigjo qelizat e theksuara dhe shtyp ‘Perfundo’.", "error");
-
+        setStatus("Ka gabime – korrigjo qelizat e theksuara dhe shtyp ‘Perfundo’.", "error");
       }
     });
   }
-
 
   createGrid();
   updateFinishState();
