@@ -193,29 +193,38 @@ function checkBoard() {
 
     const output = document.getElementById("output");
 
+    // Kontrollo për duplikate në rreshta
     for (let i = 0; i < n; i++) {
         const seen = new Set();
         for (let j = 0; j < n; j++) {
             if (board[i][j] === 0) continue;
             if (seen.has(board[i][j])) {
-                output.innerHTML = `<p>⚠️ Row ${i+1} has duplicates!</p>`;
+                output.innerHTML = `<p>⚠️ Row ${i + 1} has duplicates!</p>`;
                 return;
             }
             seen.add(board[i][j]);
         }
     }
 
+    // Kontrollo për duplikate në kolona
     for (let j = 0; j < n; j++) {
         const seen = new Set();
         for (let i = 0; i < n; i++) {
             if (board[i][j] === 0) continue;
             if (seen.has(board[i][j])) {
-                output.innerHTML = `<p>⚠️ Column ${j+1} has duplicates!</p>`;
+                output.innerHTML = `<p>⚠️ Column ${j + 1} has duplicates!</p>`;
                 return;
             }
             seen.add(board[i][j]);
         }
     }
 
-    output.innerHTML = `<p>✅ So far, your board is valid!</p>`;
+    // 🔍 Kontrollo nëse tabela është plotësisht e mbushur
+    const allFilled = board.every(row => row.every(val => val !== 0));
+
+    if (!allFilled) {
+        output.innerHTML = `<p>✅ So far, your board is valid!</p>`;
+    } else {
+        output.innerHTML = `<p>🎉 Congratulations! You completed the Latin Square correctly!</p>`;
+    }
 }
