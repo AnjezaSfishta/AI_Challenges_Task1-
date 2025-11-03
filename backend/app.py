@@ -28,28 +28,69 @@ def sudoku_page():
 
 @app.get("/generate")
 def sudoku_generate():
-    """Generate a Sudoku puzzle by level."""
     level = (request.args.get("level", "easy") or "easy").lower()
     if level not in {"easy", "medium", "hard"}:
         level = "easy"
+
+    ensure_unique = request.args.get("unique", "0") in {"1", "true", "True"}
     gen = SudokuGenerator()
-    puzzle = gen.generate_sudoku(level)
-    return jsonify({"status": "ok", "level": level, "puzzle": puzzle})
+    puzzle = gen.generate_sudoku(level, ensure_unique=ensure_unique, max_checks=50)
+
+    return jsonify({"status": "ok", "level": level, "unique": ensure_unique, "puzzle": puzzle})
 
 @app.post("/solve_sudoku")
+@app.post("/solve_sudoku")
 def sudoku_solve():
-    """Solve a Sudoku puzzle posted as JSON."""
-    data = request.get_json(force=True) or {}
-    puzzle = data.get("puzzle")
-    if not puzzle:
-        return jsonify({"status": "error", "message": "Missing 'puzzle'."}), 400
+    try:
+        data = request.get_json(force=True) or {}
+        puzzle = data.get("puzzle")
 
-    solver = SudokuSolver(puzzle)
-    ok, solution = solver.solve_bfs_backtracking()
-    if ok and solution:
-        return jsonify({"status": "ok", "solution": solution})
-    else:
-        return jsonify({"status": "error", "message": "No solution found."}), 400
+        if (not puzzle or not isinstance(puzzle, list) or len(puzzle) != 9
+            or any(not isinstance(r, list) or len(r) != 9 for r in puzzle)):
+            return jsonify({
+                "status": "error",
+                "message": "Missing or invalid 'puzzle' (must be 9x9 list[list[int]])."
+            }), 400
+
+        solver = SudokuSolver(puzzle)
+        klass = solver.classify_puzzle(puzzle, limit=2)
+
+        if klass["status"] == "invalid":
+            return jsonify({
+                "status": "invalid",
+                "message": "Invalid puzzle: duplicate values in row, column, or block."
+            }), 200
+
+        if klass["status"] == "unsolvable":
+            return jsonify({
+                "status": "unsolvable",
+                "message": "This Sudoku has 0 valid solutions."
+            }), 200
+
+        if klass["status"] == "unique":
+            return jsonify({
+                "status": "unique",
+                "message": "Unique solution found ✅",
+                "solution": klass["solution"]
+            }), 200
+
+        if klass["status"] == "multiple":
+            return jsonify({
+                "status": "multiple",
+                "message": "Multiple valid solutions exist ⚠️ (showing one).",
+                "solution": klass["solution"]
+            }), 200
+
+        return jsonify({
+            "status": "error",
+            "message": "Unexpected solver state."
+        }), 500
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Internal error: {e}"
+        }), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
