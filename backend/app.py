@@ -41,7 +41,7 @@ def solve_latin():
     if solution:
         return jsonify({"success": True, "solution": solution, "elapsed_time": elapsed})
     else:
-        return jsonify({"success": False, "message": "No solution found.", "elapsed_time": elapsed})
+        return jsonify({"success": False, "message": "No solution found within the current depth limit. Increase the limit and try again", "elapsed_time": elapsed})
 
 if __name__ == "__main__":
     app.run(debug=True)
