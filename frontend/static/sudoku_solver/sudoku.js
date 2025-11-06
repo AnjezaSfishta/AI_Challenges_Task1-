@@ -10,7 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const statusDiv   = document.getElementById("status");
   const congratsDiv = document.getElementById("congrats");
 
-
   function setStatus(msg, type = "") {
     statusDiv.classList.remove("error", "ok");
     if (type) statusDiv.classList.add(type);
@@ -46,7 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
     clearBtn.disabled  = false;
     updateFinishState(); 
   }
-
 
   function boardComplete(board) {
     return board.every(row => row.every(v => Number.isInteger(v) && v >= 1 && v <= 9));
@@ -193,6 +191,24 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFinishState();
   }
 
+  // --- helper: fetch me timeout (default 30s) ---
+  function fetchWithTimeout(resource, options = {}, timeout = 30000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    return fetch(resource, { ...options, signal: controller.signal })
+      .finally(() => clearTimeout(id));
+  }
+
+  function formatMs(ms) {
+    if (ms == null || !isFinite(ms)) return "";
+    if (ms < 1000) return `${ms.toFixed(1)} ms`;
+    const s = ms / 1000;
+    if (s < 60) return `${s.toFixed(3)} s`;
+    const m = Math.floor(s / 60);
+    const rs = (s % 60).toFixed(3);
+    return `${m}m ${rs}s`;
+  }
+
   async function generatePuzzle() {
     const level = levelSelect.value;
     setStatus("Generating puzzle...");
@@ -201,7 +217,9 @@ document.addEventListener("DOMContentLoaded", () => {
     setButtonsDefault(); 
 
     try {
-      const res = await fetch(`${API_BASE}/generate?level=${level}`);
+      const timeoutMs = 30000; // 30s
+      const url = `${API_BASE}/generate?level=${level}&timeout_ms=${timeoutMs}`;
+      const res = await fetchWithTimeout(url, {}, timeoutMs);
       const data = await res.json();
       if (data.status === "ok") {
         setBoardToUI(data.puzzle, true); 
@@ -210,8 +228,12 @@ document.addEventListener("DOMContentLoaded", () => {
         setStatus("Error generating puzzle", "error");
       }
     } catch (err) {
-      setStatus("Could not reach backend. Make sure Flask is running.", "error");
-      console.error(err);
+      if (err.name === "AbortError") {
+        setStatus("Generate u ndërpre: kaloi koha (30s). Provo sërish ose zgjidh 'easy'.", "error");
+      } else {
+        setStatus("Could not reach backend. Make sure Flask is running.", "error");
+        console.error(err);
+      }
     }
   }
 
@@ -219,46 +241,49 @@ document.addEventListener("DOMContentLoaded", () => {
     const puzzle = readBoardFromUI();
     clearHighlights();
     setStatus("Solving...");
-    finishBtn.disabled = true;
+    if (finishBtn) finishBtn.disabled = true;
 
     try {
-
-      const res = await fetch(`${API_BASE}/solve_sudoku`, {
+      const timeoutMs = 30000; // 30s
+      const t0 = performance.now();
+      const res = await fetchWithTimeout(`${API_BASE}/solve_sudoku`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ puzzle })
-      });
+        body: JSON.stringify({ puzzle, timeout_ms: timeoutMs, max_nodes: 2_000_000 })
+      }, timeoutMs);
       const data = await res.json();
+      const t1 = performance.now();
 
-      if (data.status === "unique" || data.status === "multiple") {
+      const durationMs = (typeof data.duration_ms === "number") ? data.duration_ms : (t1 - t0);
+      const nodes = (typeof data.node_count === "number") ? data.node_count : null;
+      const algo  = data.algorithm ? ` | algo: ${data.algorithm}` : "";
+      const stats = ` | time: ${formatMs(durationMs)}${nodes != null ? ` | nodes: ${nodes}` : ""}${algo}`;
+
+      if (data.status === "ok" && data.solution) {
         setBoardToUI(data.solution, false);
-        setStatus(
-          data.status === "unique" ? "Solved (unique)" : "Solved (multiple)",
-          "ok"
-        );
+        setStatus(`Solved.${stats}`, "ok");
         if (congratsDiv) congratsDiv.style.display = "block";
         setButtonsOnlyGenerate();
-      } else if (data.status === "unsolvable") {
-        setStatus("Unsolvable: 0 solutions.", "error");
-        setButtonsDefault();
-      } else if (data.status === "invalid") {
-        setStatus("Invalid puzzle: row/column/box conflicts.", "error");
+      } else if (data.timed_out) {
+        setStatus(`Ndërprerë: kaloi koha (30s).${stats}`, "error");
         setButtonsDefault();
       } else {
-        setStatus(`Error: ${data.message || "backend error"}`, "error");
+        setStatus(`No solution or error.${stats}`, "error");
         setButtonsDefault();
       }
     } catch (err) {
-      setStatus("Error communicating with backend.", "error");
-      console.error(err);
+      if (err.name === "AbortError") {
+        setStatus("Solve u ndërpre: kaloi koha (30s). Provo sërish ose përdor puzzle më të thjeshtë.", "error");
+      } else {
+        setStatus("Error communicating with backend.", "error");
+        console.error(err);
+      }
       setButtonsDefault();
     }
   }
 
-
   generateBtn.addEventListener("click", generatePuzzle);
   solveBtn.addEventListener("click", solvePuzzle);
-
 
   clearBtn.addEventListener("click", () => {
     if (clearBtn.disabled) return;
@@ -273,7 +298,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (congratsDiv) congratsDiv.style.display = "none";
     updateFinishState();
   });
-
 
   if (finishBtn) {
     finishBtn.disabled = true;
