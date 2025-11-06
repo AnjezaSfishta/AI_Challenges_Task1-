@@ -1,0 +1,94 @@
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4ebf0 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.container {
+    display: flex;
+    gap: 40px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.card {
+    background: white;
+    border-radius: 20px;
+    padding: 40px 30px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: all 0.25s ease-in-out;
+    width: 280px;
+    height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.card h2 {
+    margin-bottom: 10px;
+    font-size: 22px;
+}
+
+.card p {
+    color: #555;
+    font-size: 15px;
+}
+
+.card:hover {
+    transform: translateY(-8px) scale(1.05);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.15);
+}
+
+.card.golfers:hover {
+    background: linear-gradient(135deg, #0078d7, #00a6ff);
+    color: white;
+}
+
+.card.latin:hover {
+    background: linear-gradient(135deg, #28a745, #6edb70);
+    color: white;
+}
+
+.card.sudoku:hover {
+    background: linear-gradient(135deg, #ff9800, #ffc107);
+    color: white;
+}
+
+.card:hover p {
+    color: white;
+}
+
+h1.title {
+    position: absolute;
+    top: 60px;
+    text-align: center;
+    font-size: 36px;
+    color: #333;
+    width: 100%;
+    letter-spacing: 1px;
+}
+
+.card.golfers:hover {
+    box-shadow: 0 0 25px rgba(0, 120, 215, 0.6);
+}
+
+.card.latin:hover {
+    box-shadow: 0 0 25px rgba(40, 167, 69, 0.6);
+}
+
+.card.sudoku:hover {
+    box-shadow: 0 0 25px rgba(255, 193, 7, 0.6);
+}
+
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column;
+        gap: 25px;
+    }
+}
