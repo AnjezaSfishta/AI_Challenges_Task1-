@@ -35,7 +35,7 @@ Pamja fillestare përmban tre butona kryesorë:
 
 Kur klikohet në secilin buton, hapet loja përkatëse.
 
-![Main Menu] !![alt text](image-3.png)
+![alt text](image-3.png)
 
 ---
 
@@ -55,7 +55,7 @@ Qëllimi është të planifikohet numri maksimal i javëve në mënyrë që **as
 - **Depth First Search (DFS)** me **Backtracking**  
 - **Depth Limited Search (DLS)** me kufizim të thellësisë
 
-![Social Golfers Screenshot]!![alt text](image.png)
+![alt text](image.png)
 
 ---
 
@@ -73,7 +73,7 @@ Programi zgjidh një **Sudoku** për nivele **Easy**, **Medium** dhe **Hard**, d
 ### Teknikat e përdorura
 - **Breadth First Search (BFS)** me **Backtracking**
 
-![Sudoku Screenshot]!![alt text](image-1.png)
+![alt text](image-1.png)
 
 ---
 
@@ -92,7 +92,7 @@ Krijon një **matricë n×n** ku çdo numër nga 1 në n shfaqet **vetëm një h
 - **Iterative Deepening Depth First Search (IDDFS)**  
 - **Backtracking**
 
-![Latin Square Screenshot]!![alt text](image-2.png)
+![alt text](image-2.png)
 
 ---
 
