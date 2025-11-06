@@ -1,15 +1,13 @@
 import itertools
-import math
-from typing import List, Tuple, Set, Optional, Dict
+from typing import List, Tuple, Set, Optional, Dict, Iterable
 
 
-# --------------------------- Utilities ---------------------------
+# ==========================================================
+# Utilities
+# ==========================================================
 
 def calculate_max_theoretical_weeks(n: int, p: int) -> int:
-    """
-    Upper bound on weeks for Social Golfers:
-        floor((n - 1) / (p - 1))
-    """
+    """Upper bound on weeks for Social Golfers: floor((n - 1) / (p - 1))."""
     if p <= 1:
         return 0
     return (n - 1) // (p - 1)
@@ -21,225 +19,191 @@ def pairs_of(group: Tuple[int, ...]) -> Set[Tuple[int, int]]:
 
 
 def canonical_week(week: List[Tuple[int, ...]]) -> List[Tuple[int, ...]]:
-    """
-    Normalize a week representation:
-    - sort members inside each group,
-    - sort groups lexicographically.
-    This kills permutations of same structure.
-    """
+    """Normalize week representation by sorting members and groups."""
     return sorted([tuple(sorted(g)) for g in week])
 
 
-# --------------------- Week Construction (BT) ---------------------
+# ==========================================================
+# Lazy Week Construction (Backtracking)
+# ==========================================================
 
-def build_all_weeks(players: List[int],
-                    group_size: int,
-                    used_pairs_global: Set[Tuple[int, int]]) -> List[List[Tuple[int, ...]]]:
-    """
-    Generate ALL valid "weeks":
-      - partition all players into groups of size group_size
-      - no pair is reused (not in used_pairs_global)
-      - no pair repeats within the constructed week either
-    Symmetry is reduced by always picking the smallest remaining player
-    as the "anchor" of the next group.
-    """
+def _iter_one_week(players: List[int],
+                   group_size: int,
+                   used_pairs_global: Set[Tuple[int, int]]) -> Iterable[List[Tuple[int, ...]]]:
+    """Generate valid 'weeks' lazily."""
     players = sorted(players)
-    groups_per_week = len(players) // group_size
+    groups_needed = len(players) // group_size
 
-    results: List[List[Tuple[int, ...]]] = []
-    week_so_far: List[Tuple[int, ...]] = []
-    week_pairs: Set[Tuple[int, int]] = set()
-
-    def extend(rem: List[int]) -> None:
-        if len(week_so_far) == groups_per_week:
-            results.append(canonical_week(week_so_far.copy()))
+    def rec(week_so_far: List[Tuple[int, ...]],
+            week_pairs: Set[Tuple[int, int]],
+            last_anchor: int):
+        if len(week_so_far) == groups_needed:
+            yield canonical_week(week_so_far.copy())
             return
 
-        anchor = rem[0]  # smallest remaining -> break symmetry between groups
+        used_players = {p for g in week_so_far for p in g}
+        remaining = [x for x in players if x not in used_players]
 
-        for partners in itertools.combinations(rem[1:], group_size - 1):
-            group = tuple(sorted((anchor, *partners)))
-            ps = pairs_of(group)
+        for i, anchor in enumerate(remaining):
+            if anchor <= last_anchor:
+                continue
+            pool = remaining[i + 1:]
+            for mates in itertools.combinations(pool, group_size - 1):
+                group = tuple(sorted((anchor, *mates)))
+                ps = pairs_of(group)
+                if ps & used_pairs_global or ps & week_pairs:
+                    continue
 
-            # reject if any pair is already used globally OR within this week
-            if ps.isdisjoint(used_pairs_global) and ps.isdisjoint(week_pairs):
-                # choose this group
                 week_so_far.append(group)
-                week_pairs_update = ps
-                week_pairs.update(week_pairs_update)
+                for pp in ps:
+                    week_pairs.add(pp)
 
-                new_rem = [x for x in rem if x not in group]
-                extend(new_rem)
+                yield from rec(week_so_far, week_pairs, anchor)
 
-                # backtrack
                 week_so_far.pop()
-                for pp in week_pairs_update:
+                for pp in ps:
                     week_pairs.discard(pp)
 
-    extend(players)
-
-    # deduplicate identical structures
-    unique: List[List[Tuple[int, ...]]] = []
-    seen = set()
-    for w in results:
-        key = tuple(w)
-        if key not in seen:
-            seen.add(key)
-            unique.append(w)
-
-    return unique
+    yield from rec([], set(), -1)
 
 
-# --------------------- DFS / DLS with Backtracking ---------------------
+# ==========================================================
+# DFS / DLS with Controlled Logging
+# ==========================================================
 
 def _search_weeks(num_players: int,
                   group_size: int,
                   target_weeks: int) -> List[List[List[int]]]:
-    """
-    Core recursive search to reach up to target_weeks weeks.
-    This differs from previous attempts in one crucial way:
-    - We DO NOT hardcode week 1.
-    Instead we generate all valid first weeks and branch on them.
-    """
+    """Backtracking search that prints each week only once when depth increases."""
 
-    # Problem constants
     all_players = list(range(1, num_players + 1))
     groups_per_week = num_players // group_size
     pairs_per_group = (group_size * (group_size - 1)) // 2
     pairs_per_week = groups_per_week * pairs_per_group
-    total_pairs = (num_players * (num_players - 1)) // 2  # C(n,2)
+    total_pairs = (num_players * (num_players - 1)) // 2
 
-    # global best
     best_so_far: List[List[Tuple[int, ...]]] = []
-
-    # memoization:
-    # key: (frozenset(used_pairs), depth) -> we already explored this or deeper
     seen_depth: Dict[frozenset, int] = {}
+    dead_state: Set[frozenset] = set()
+    printed_depths: Set[int] = set()  # <- tracks what depths were printed
 
     def admissible_can_reach(depth_now: int, used_pairs_count: int) -> bool:
-        """
-        Upper bound pruning:
-        remaining_pairs = total_pairs - used_pairs_count
-        each new full week consumes at least pairs_per_week distinct pairs,
-        so the max extra weeks we *could* still add is floor(remaining/pairs_per_week).
-        If depth_now + that max < target_weeks -> prune.
-        """
         remaining_pairs = total_pairs - used_pairs_count
         max_additional_weeks = remaining_pairs // pairs_per_week
         return (depth_now + max_additional_weeks) >= target_weeks
 
+    def forward_check(used_pairs_map: Set[Tuple[int, int]], depth_now: int) -> bool:
+        adj: Dict[int, Set[int]] = {i: set() for i in all_players}
+        for a, b in used_pairs_map:
+            adj[a].add(b)
+            adj[b].add(a)
+
+        remaining_weeks = target_weeks - (depth_now + 1)
+        if remaining_weeks <= 0:
+            return True
+        need = remaining_weeks * (group_size - 1)
+        for pl in all_players:
+            unseen = (num_players - 1) - len(adj[pl])
+            if unseen < need:
+                return False
+        return True
+
     def dfs_build(schedule: List[List[Tuple[int, ...]]],
-                  used_pairs: Set[Tuple[int, int]]) -> None:
-        nonlocal best_so_far
+                  used_pairs: Set[Tuple[int, int]]):
+        nonlocal best_so_far, printed_depths
 
         depth_now = len(schedule)
 
-        # If we hit or exceed the target depth, update best and stop here.
+        # Reached or exceeded depth target
         if depth_now >= target_weeks:
             if depth_now > len(best_so_far):
                 best_so_far = [wk.copy() for wk in schedule]
+                if depth_now not in printed_depths:
+                    printed_depths.add(depth_now)
+                    print(f"✅ Week {depth_now} finalized: {[[list(g) for g in schedule[-1]]]}", flush=True)
             return
 
-        # Admissible bound pruning
+        # Pruning checks
         if not admissible_can_reach(depth_now, len(used_pairs)):
-            # can't possibly reach target_weeks from here
-            if depth_now > len(best_so_far):
-                best_so_far = [wk.copy() for wk in schedule]
+            return
+        if not forward_check(used_pairs, depth_now):
             return
 
-        # Memoization prune:
+        # Memoization
         key = frozenset(used_pairs)
         prev_depth = seen_depth.get(key, -1)
-        # If we've already explored this "used_pairs state" with
-        # at least this depth or deeper, don't redo.
         if prev_depth >= depth_now:
             return
         seen_depth[key] = depth_now
 
-        # Build all possible next-week partitions
-        candidate_weeks = build_all_weeks(all_players, group_size, used_pairs)
-        if not candidate_weeks:
-            # dead end
-            if depth_now > len(best_so_far):
-                best_so_far = [wk.copy() for wk in schedule]
+        if key in dead_state:
             return
 
-        # Heuristic: prefer weeks that add fewer new pairs first,
-        # to keep more flexibility for deeper levels
-        def new_pairs_count(week_struct: List[Tuple[int, ...]]) -> int:
-            wk_pairs = set().union(*(pairs_of(g) for g in week_struct))
-            return len(wk_pairs)
-
-        candidate_weeks.sort(key=new_pairs_count)
-
-        for next_week in candidate_weeks:
-            # Light pruning: avoid repeating the exact same week back-to-back
+        next_week_found = False
+        for next_week in _iter_one_week(all_players, group_size, used_pairs):
+            next_week_found = True
             if depth_now > 0 and next_week == schedule[-1]:
                 continue
 
             new_pairs_this_week = set().union(*(pairs_of(g) for g in next_week))
-
-            # commit
             schedule.append(next_week)
-            prev_used_pairs = used_pairs
+            used_before = used_pairs
             used_pairs = used_pairs | new_pairs_this_week
+
+            # If we’ve reached a new max depth → print once
+            if len(schedule) > len(best_so_far) and len(schedule) not in printed_depths:
+                printed_depths.add(len(schedule))
+                print(f"✅ Week {len(schedule)} finalized: {[[list(g) for g in next_week]]}", flush=True)
 
             dfs_build(schedule, used_pairs)
 
-            # backtrack
             schedule.pop()
-            used_pairs = prev_used_pairs
+            used_pairs = used_before
 
-            # if we've already matched target_weeks, no need to branch more
             if len(best_so_far) >= target_weeks:
                 return
 
-    # EDGE CASES
+        if not next_week_found:
+            dead_state.add(key)
+            return
+
+    # Base conditions
     if target_weeks <= 0:
         return []
-    # If target is 1, we just need ANY valid single week.
-    # We'll generate one-week schedules by building all possible weeks directly
-    # and pick the first one.
-    if target_weeks == 1:
-        first_weeks = build_all_weeks(all_players, group_size, used_pairs_global=set())
-        if not first_weeks:
-            return []
-        best_one = first_weeks[0]
-        return [[list(group) for group in best_one]]
+    if (num_players <= 0) or (group_size < 2) or (num_players % group_size != 0):
+        return []
 
-    # Start recursion with *no* fixed Week 1
-    # We start with empty schedule, empty used_pairs
+    # Simple single week case
+    if target_weeks == 1:
+        gen = _iter_one_week(all_players, group_size, used_pairs_global=set())
+        try:
+            first = next(gen)
+            print(f"✅ Week 1 finalized: {[[list(g) for g in first]]}", flush=True)
+            return [[list(group) for group in first]]
+        except StopIteration:
+            return []
+
     dfs_build(schedule=[], used_pairs=set())
 
-    # Convert tuples → lists for JSON
-    return [
-        [list(group) for group in week]
-        for week in best_so_far
-    ]
+    return [[list(group) for group in week] for week in best_so_far]
 
+
+# ==========================================================
+# Public Algorithms
+# ==========================================================
 
 def dfs_weeks(num_players: int, group_size: int) -> List[List[List[int]]]:
-    """
-    Plain DFS search: try to reach the theoretical maximum depth.
-    """
     cap = calculate_max_theoretical_weeks(num_players, group_size)
     return _search_weeks(num_players, group_size, cap)
 
 
 def dls_weeks(num_players: int, group_size: int, depth_limit: int) -> List[List[List[int]]]:
-    """
-    Depth-Limited Search (DLS): we cap how deep we want to go.
-    """
     cap = calculate_max_theoretical_weeks(num_players, group_size)
     target = max(1, min(depth_limit, cap))
     return _search_weeks(num_players, group_size, target)
 
 
 def ids_weeks(num_players: int, group_size: int) -> List[List[List[int]]]:
-    """
-    Iterative Deepening Search (IDS): try 1, then 2, ..., up to cap.
-    We keep the best schedule found so far.
-    """
     cap = calculate_max_theoretical_weeks(num_players, group_size)
     best: List[List[List[int]]] = []
     for d in range(1, cap + 1):
@@ -251,43 +215,34 @@ def ids_weeks(num_players: int, group_size: int) -> List[List[List[int]]]:
     return best
 
 
-# ----------------------- Flask-facing API -----------------------
+# ==========================================================
+# Flask-facing API
+# ==========================================================
 
 def find_max_weeks(num_players: int,
                    group_size: int,
                    algorithm: str = "Depth-First Search (DFS)",
                    depth_limit: Optional[int] = None) -> Tuple[List[List[List[int]]], int]:
-    """
-    Public API entry used by app.py.
-    Returns (schedule, weeks)
-    where schedule is:
-        [
-            [ [p1,p2,p3,p4], [p5,p6,p7,p8], ... ],  # week 1
-            [ [..], [..], ... ],                    # week 2
-            ...
-        ]
-    """
-    # basic sanity
+    """Public API entry for Flask app."""
     if num_players <= 0 or group_size < 2 or (num_players % group_size) != 0:
         return [], 0
 
     if algorithm == "Depth-First Search (DFS)":
         schedule = dfs_weeks(num_players, group_size)
-
     elif algorithm == "Depth-Limited Search (DLS)":
         lim = 1 if depth_limit is None else int(max(1, depth_limit))
         schedule = dls_weeks(num_players, group_size, lim)
-
     elif algorithm == "Iterative Deepening Search (IDS)":
         schedule = ids_weeks(num_players, group_size)
-
     else:
         schedule = dfs_weeks(num_players, group_size)
 
     return schedule, len(schedule)
 
 
-# ----------------------- Local quick test -----------------------
+# ==========================================================
+# Local Quick Test
+# ==========================================================
 
 if __name__ == "__main__":
     for n in (8, 12, 16, 20):
