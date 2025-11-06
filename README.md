@@ -25,7 +25,7 @@ Ky projekt përfshin implementimin e tri lojërave klasike që modelojnë **prob
 
 ---
 
-## 🖼️ Pamja e aplikacionit
+## Pamja e aplikacionit
 
 Pamja fillestare përmban tre butona kryesorë:
 
