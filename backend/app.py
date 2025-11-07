@@ -82,7 +82,7 @@ def sudoku_generate():
 
     ensure_unique = request.args.get("unique", "0") in {"1", "true", "True"}
 
-    # default timeout 30s
+
     timeout_ms = request.args.get("timeout_ms", type=int, default=30000)
     timeout_sec = (timeout_ms / 1000.0) if timeout_ms and timeout_ms > 0 else None
 
@@ -98,7 +98,7 @@ def sudoku_solve():
     if not puzzle:
         return jsonify({"status": "error", "message": "Missing 'puzzle'."}), 400
 
-    # default timeout 30s
+
     timeout_ms = data.get("timeout_ms", 30000)
     max_nodes  = data.get("max_nodes", 2_000_000)
     timeout_sec = (timeout_ms / 1000.0) if timeout_ms and timeout_ms > 0 else None

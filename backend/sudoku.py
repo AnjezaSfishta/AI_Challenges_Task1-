@@ -1,5 +1,3 @@
-# sudoku.py
-# Vendose këtë file në të njëjtin folder me app.py (backend/).
 
 import random
 import time
@@ -8,28 +6,22 @@ from collections import deque
 from typing import List, Optional, Tuple
 
 
-# =========================
-#  SudokuSolver (BFS only)
-# =========================
+
 class SudokuSolver:
-    """
-    Zgjidh sudoku me BFS + backtracking (pa heuristika).
-    0 = qeliza bosh.
-    """
 
     def __init__(self, grid: List[List[int]]):
         self.grid = grid
 
     def _is_valid(self, board, r, c, v) -> bool:
-        # rreshti
+
         for j in range(9):
             if board[r][j] == v:
                 return False
-        # kolona
+
         for i in range(9):
             if board[i][c] == v:
                 return False
-        # kuti 3x3
+
         br, bc = (r // 3) * 3, (c // 3) * 3
         for i in range(br, br + 3):
             for j in range(bc, bc + 3):
@@ -49,16 +41,12 @@ class SudokuSolver:
         max_time_sec: Optional[float] = None,
         max_nodes: Optional[int] = None
     ):
-        """
-        BFS mbi gjendjet. Kthen (ok, solution, stats).
-        stats: duration_ms, node_count, timed_out: bool
-        """
+
         start = time.perf_counter()
         q = deque([deepcopy(self.grid)])
         visited = 0
 
         while q:
-            # TIMEOUT / NODES CAP
             if max_time_sec is not None and (time.perf_counter() - start) >= max_time_sec:
                 dur_ms = (time.perf_counter() - start) * 1000.0
                 return False, None, {"duration_ms": round(dur_ms, 3), "node_count": visited, "timed_out": True}
@@ -83,12 +71,9 @@ class SudokuSolver:
         dur_ms = (time.perf_counter() - start) * 1000.0
         return False, None, {"duration_ms": round(dur_ms, 3), "node_count": visited, "timed_out": False}
 
-    # Përdoret nga gjeneruesi për numërim zgjidhjesh me BFS (pa DFS).
+
     def count_solutions_bfs(self, limit: int = 2) -> int:
-        """
-        Numëron zgjidhjet me BFS, duke ndalur në 'limit'.
-        Përdoret për ensure_unique gjatë gjenerimit.
-        """
+
         q = deque([deepcopy(self.grid)])
         solutions = 0
         while q and solutions < limit:
@@ -98,7 +83,6 @@ class SudokuSolver:
                 solutions += 1
                 continue
             for v in range(1, 10):
-                # validim i shpejtë
                 valid = True
                 for j in range(9):
                     if board[r][j] == v:
@@ -130,22 +114,15 @@ class SudokuSolver:
         return solutions
 
 
-# =========================
-#  SudokuGenerator
-# =========================
+
 class SudokuGenerator:
-    """
-    Gjeneron puzzle duke nisur nga një zgjidhje bazë e vlefshme,
-    pastaj shkund permutime dhe heq qeliza sipas nivelit.
-    Nëse ensure_unique=True, verifikon që të ketë <= 1 zgjidhje (me BFS).
-    """
 
     def __init__(self):
         pass
 
     def _solved_base(self) -> List[List[int]]:
         base = 3
-        side = base * base  # 9
+        side = base * base  
         def pattern(r, c): return (base * (r % base) + r // base + c) % side
         rows = [r for r in range(side)]
         cols = [c for c in range(side)]
@@ -153,10 +130,8 @@ class SudokuGenerator:
         return [[nums[pattern(r, c)] for c in cols] for r in rows]
 
     def _shuffle_board(self, board: List[List[int]]) -> List[List[int]]:
-        """Shkund në mënyrë të sigurtë numrat, rreshtat/kolonat brenda band/stack dhe vetë band/stack."""
         b = deepcopy(board)
 
-        # 1) Permuto numrat 1..9
         perm = list(range(1, 10))
         random.shuffle(perm)
         mapping = {i + 1: perm[i] for i in range(9)}
@@ -164,14 +139,13 @@ class SudokuGenerator:
             for c in range(9):
                 b[r][c] = mapping[b[r][c]]
 
-        # 2) Shuflo rreshtat brenda çdo band-i (0–2, 3–5, 6–8)
         for band in range(0, 9, 3):
             order = [0, 1, 2]
             random.shuffle(order)
             rows = b[band:band + 3]
             b[band:band + 3] = [rows[i] for i in order]
 
-        # 3) Shuflo kolonat brenda çdo stack-u (0–2, 3–5, 6–8)
+
         for stack in range(0, 9, 3):
             order = [0, 1, 2]
             random.shuffle(order)
@@ -179,7 +153,7 @@ class SudokuGenerator:
                 slice3 = b[r][stack:stack + 3]
                 b[r][stack:stack + 3] = [slice3[i] for i in order]
 
-        # 4) Shuflo vetë band-et (blloqet e rreshtave 3x3)
+
         band_order = [0, 1, 2]
         random.shuffle(band_order)
         new_b = []
@@ -187,7 +161,7 @@ class SudokuGenerator:
             new_b.extend(b[bo * 3: bo * 3 + 3])
         b = new_b
 
-        # 5) Shuflo vetë stack-et (blloqet e kolonave 3x3)
+
         stack_order = [0, 1, 2]
         random.shuffle(stack_order)
         for r in range(9):
@@ -225,9 +199,7 @@ class SudokuGenerator:
         max_checks: int = 50,
         timeout_sec: Optional[float] = None
     ) -> List[List[int]]:
-        """
-        Gjeneron puzzle. Ndalet nëse kalon timeout_sec dhe kthen puzzle-in aktual.
-        """
+
         start = time.perf_counter()
 
         solved = self._solved_base()
@@ -241,7 +213,7 @@ class SudokuGenerator:
 
         checks_done = 0
         for (r, c) in coords:
-            # TIMEOUT CHECK
+
             if timeout_sec is not None and (time.perf_counter() - start) >= timeout_sec:
                 break
 
