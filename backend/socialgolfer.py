@@ -202,19 +202,6 @@ def dls_weeks(num_players: int, group_size: int, depth_limit: int) -> List[List[
     target = max(1, min(depth_limit, cap))
     return _search_weeks(num_players, group_size, target)
 
-
-def ids_weeks(num_players: int, group_size: int) -> List[List[List[int]]]:
-    cap = calculate_max_theoretical_weeks(num_players, group_size)
-    best: List[List[List[int]]] = []
-    for d in range(1, cap + 1):
-        candidate = _search_weeks(num_players, group_size, d)
-        if len(candidate) > len(best):
-            best = candidate
-        if len(best) >= cap:
-            break
-    return best
-
-
 # ==========================================================
 # Flask-facing API
 # ==========================================================
@@ -232,8 +219,6 @@ def find_max_weeks(num_players: int,
     elif algorithm == "Depth-Limited Search (DLS)":
         lim = 1 if depth_limit is None else int(max(1, depth_limit))
         schedule = dls_weeks(num_players, group_size, lim)
-    elif algorithm == "Iterative Deepening Search (IDS)":
-        schedule = ids_weeks(num_players, group_size)
     else:
         schedule = dfs_weeks(num_players, group_size)
 
