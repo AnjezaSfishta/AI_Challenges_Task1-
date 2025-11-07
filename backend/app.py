@@ -1,12 +1,15 @@
 import os
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-
-from socialgolfer import find_max_weeks
+import time
+from socialgolfer import find_max_weeks, set_stop_flag, get_progress
 from latin_square import latin_square_solver
 from sudoku import SudokuGenerator, SudokuSolver
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+stop_flag = False
+current_progress = []
 
 app = Flask(
     __name__,
@@ -26,24 +29,42 @@ def golfers_page():
     return render_template("golfers.html")
 
 @app.route("/solve", methods=["POST"])
-def solve_golfers():
+def solve():
+    global stop_flag, current_progress
+    stop_flag = False
+    current_progress = []
+
     data = request.get_json()
-    num_players = int(data.get("num_players", 32))
-    group_size = int(data.get("group_size", 4))
-    algorithm = data.get("algorithm", "Depth-First Search (DFS)")
-    depth_limit = data.get("depth_limit", None)
-    if depth_limit:
-        depth_limit = int(depth_limit)
+    num_players = data.get("num_players")
+    group_size = data.get("group_size")
+    algorithm = data.get("algorithm")
+    depth_limit = data.get("depth_limit")
 
-    import time
-    start = time.time()
+    start_time = time.time()
     schedule, weeks = find_max_weeks(num_players, group_size, algorithm, depth_limit)
-    elapsed = round(time.time() - start, 4)
+    elapsed = round(time.time() - start_time, 3)
 
-    if not schedule:
-        return jsonify({"success": False, "message": "No valid schedule found.", "elapsed_time": elapsed})
+    return jsonify({
+        "success": True,
+        "elapsed_time": elapsed,
+        "weeks": weeks,
+        "schedule": schedule
+    })
 
-    return jsonify({"success": True, "weeks": weeks, "schedule": schedule, "elapsed_time": elapsed})
+@app.route("/stop", methods=["POST"])
+def stop():
+    set_stop_flag(True)
+    return jsonify({"stopped": True})
+
+
+@app.route("/progress", methods=["GET"])
+def progress():
+    schedule = get_progress()
+    return jsonify({
+        "weeks": len(schedule),
+        "schedule": schedule
+    })
+
 
 # ---------------- LATIN SQUARE ---------------- #
 @app.route("/latin_square")

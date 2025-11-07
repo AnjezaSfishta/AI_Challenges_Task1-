@@ -1,6 +1,24 @@
 import itertools
 from typing import List, Tuple, Set, Optional, Dict, Iterable
 
+# Global state (imported by Flask)
+stop_flag = False
+current_progress: List[List[List[int]]] = []
+
+
+# ==========================================================
+# Control functions (called from Flask)
+# ==========================================================
+
+def set_stop_flag(value: bool):
+    global stop_flag
+    stop_flag = value
+
+
+def get_progress():
+    global current_progress
+    return current_progress
+
 
 # ==========================================================
 # Utilities
@@ -68,13 +86,15 @@ def _iter_one_week(players: List[int],
 
 
 # ==========================================================
-# DFS / DLS with Controlled Logging
+# DFS / DLS Core with Stop & Progress Tracking
 # ==========================================================
 
 def _search_weeks(num_players: int,
                   group_size: int,
                   target_weeks: int) -> List[List[List[int]]]:
-    """Backtracking search that prints each week only once when depth increases."""
+    """Backtracking search with stop & progress tracking."""
+
+    global stop_flag, current_progress
 
     all_players = list(range(1, num_players + 1))
     groups_per_week = num_players // group_size
@@ -85,7 +105,6 @@ def _search_weeks(num_players: int,
     best_so_far: List[List[Tuple[int, ...]]] = []
     seen_depth: Dict[frozenset, int] = {}
     dead_state: Set[frozenset] = set()
-    printed_depths: Set[int] = set()  # <- tracks what depths were printed
 
     def admissible_can_reach(depth_now: int, used_pairs_count: int) -> bool:
         remaining_pairs = total_pairs - used_pairs_count
@@ -110,26 +129,24 @@ def _search_weeks(num_players: int,
 
     def dfs_build(schedule: List[List[Tuple[int, ...]]],
                   used_pairs: Set[Tuple[int, int]]):
-        nonlocal best_so_far, printed_depths
+        global stop_flag, current_progress
+
+        if stop_flag:
+            current_progress = [[list(g) for g in w] for w in schedule]
+            return
 
         depth_now = len(schedule)
 
-        # Reached or exceeded depth target
         if depth_now >= target_weeks:
-            if depth_now > len(best_so_far):
-                best_so_far = [wk.copy() for wk in schedule]
-                if depth_now not in printed_depths:
-                    printed_depths.add(depth_now)
-                    print(f"✅ Week {depth_now} finalized: {[[list(g) for g in schedule[-1]]]}", flush=True)
+            best_so_far[:] = [wk.copy() for wk in schedule]
+            current_progress = [[list(g) for g in w] for w in schedule]
             return
 
-        # Pruning checks
         if not admissible_can_reach(depth_now, len(used_pairs)):
             return
         if not forward_check(used_pairs, depth_now):
             return
 
-        # Memoization
         key = frozenset(used_pairs)
         prev_depth = seen_depth.get(key, -1)
         if prev_depth >= depth_now:
@@ -139,99 +156,56 @@ def _search_weeks(num_players: int,
         if key in dead_state:
             return
 
-        next_week_found = False
         for next_week in _iter_one_week(all_players, group_size, used_pairs):
-            next_week_found = True
-            if depth_now > 0 and next_week == schedule[-1]:
-                continue
+            if stop_flag:
+                current_progress = [[list(g) for g in w] for w in schedule]
+                return
 
             new_pairs_this_week = set().union(*(pairs_of(g) for g in next_week))
             schedule.append(next_week)
             used_before = used_pairs
             used_pairs = used_pairs | new_pairs_this_week
 
-            # If we’ve reached a new max depth → print once
-            if len(schedule) > len(best_so_far) and len(schedule) not in printed_depths:
-                printed_depths.add(len(schedule))
-                print(f"✅ Week {len(schedule)} finalized: {[[list(g) for g in next_week]]}", flush=True)
+            current_progress = [[list(g) for g in w] for w in schedule]
 
             dfs_build(schedule, used_pairs)
 
             schedule.pop()
             used_pairs = used_before
 
-            if len(best_so_far) >= target_weeks:
+            if len(best_so_far) >= target_weeks or stop_flag:
                 return
 
-        if not next_week_found:
-            dead_state.add(key)
-            return
+        dead_state.add(key)
 
-    # Base conditions
     if target_weeks <= 0:
         return []
     if (num_players <= 0) or (group_size < 2) or (num_players % group_size != 0):
         return []
 
-    # Simple single week case
-    if target_weeks == 1:
-        gen = _iter_one_week(all_players, group_size, used_pairs_global=set())
-        try:
-            first = next(gen)
-            print(f"✅ Week 1 finalized: {[[list(g) for g in first]]}", flush=True)
-            return [[list(group) for group in first]]
-        except StopIteration:
-            return []
-
     dfs_build(schedule=[], used_pairs=set())
-
-    return [[list(group) for group in week] for week in best_so_far]
+    return [[list(group) for group in week] for week in current_progress]
 
 
 # ==========================================================
-# Public Algorithms
-# ==========================================================
-
-def dfs_weeks(num_players: int, group_size: int) -> List[List[List[int]]]:
-    cap = calculate_max_theoretical_weeks(num_players, group_size)
-    return _search_weeks(num_players, group_size, cap)
-
-
-def dls_weeks(num_players: int, group_size: int, depth_limit: int) -> List[List[List[int]]]:
-    cap = calculate_max_theoretical_weeks(num_players, group_size)
-    target = max(1, min(depth_limit, cap))
-    return _search_weeks(num_players, group_size, target)
-
-# ==========================================================
-# Flask-facing API
+# Public API
 # ==========================================================
 
 def find_max_weeks(num_players: int,
                    group_size: int,
                    algorithm: str = "Depth-First Search (DFS)",
                    depth_limit: Optional[int] = None) -> Tuple[List[List[List[int]]], int]:
-    """Public API entry for Flask app."""
-    if num_players <= 0 or group_size < 2 or (num_players % group_size) != 0:
-        return [], 0
+    """Public API entry used by app.py."""
+    global stop_flag, current_progress
+    stop_flag = False
+    current_progress = []
 
-    if algorithm == "Depth-First Search (DFS)":
-        schedule = dfs_weeks(num_players, group_size)
-    elif algorithm == "Depth-Limited Search (DLS)":
-        lim = 1 if depth_limit is None else int(max(1, depth_limit))
-        schedule = dls_weeks(num_players, group_size, lim)
+    cap = calculate_max_theoretical_weeks(num_players, group_size)
+
+    if algorithm == "Depth-Limited Search (DLS)" and depth_limit is not None:
+        target = max(1, min(int(depth_limit), cap))
     else:
-        schedule = dfs_weeks(num_players, group_size)
+        target = cap
 
+    schedule = _search_weeks(num_players, group_size, target)
     return schedule, len(schedule)
-
-
-# ==========================================================
-# Local Quick Test
-# ==========================================================
-
-if __name__ == "__main__":
-    for n in (8, 12, 16, 20):
-        sched, w = find_max_weeks(n, 4, "Depth-First Search (DFS)")
-        print(f"\nN={n}, P=4 -> weeks={w}")
-        for i, week in enumerate(sched, 1):
-            print(f"Week {i}: {week}")
