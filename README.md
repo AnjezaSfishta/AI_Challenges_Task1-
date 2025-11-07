@@ -101,6 +101,7 @@ Krijon një **matricë n×n** ku çdo numër nga 1 në n shfaqet **vetëm një h
 1. Klono repozitorin:
    ```bash
    git clone https://github.com/AnjezaSfishta/AI_Challenges_Task1-.git
+   pip install -r requirements.txt
    cd backend
 
    python app.py
