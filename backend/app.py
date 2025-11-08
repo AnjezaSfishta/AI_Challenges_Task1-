@@ -1,32 +1,42 @@
 import os
+import time
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-import time
 from socialgolfer import find_max_weeks, set_stop_flag, get_progress
 from latin_square import latin_square_solver
 from sudoku import SudokuGenerator, SudokuSolver
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# ----------------------------------------------------------------------
+# Flask Configuration
+# ----------------------------------------------------------------------
+# templates/ and static/ are now inside backend/
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    static_folder=os.path.join(BASE_DIR, "static"),
+    template_folder=os.path.join(BASE_DIR, "templates"),
+)
+CORS(app)
 
 stop_flag = False
 current_progress = []
 
-app = Flask(
-    __name__,
-    static_folder=os.path.join(BASE_DIR, "frontend", "static"),
-    template_folder=os.path.join(BASE_DIR, "frontend", "templates"),
-)
-CORS(app)
-
-# ---------------- HOME PAGE ---------------- #
+# ----------------------------------------------------------------------
+# HOME PAGE
+# ----------------------------------------------------------------------
 @app.route("/")
 def home():
     return render_template("home.html")
 
-# ---------------- SOCIAL GOLFERS PROBLEM ---------------- #
+
+# ----------------------------------------------------------------------
+# SOCIAL GOLFERS PROBLEM
+# ----------------------------------------------------------------------
 @app.route("/golfers")
 def golfers_page():
     return render_template("golfers.html")
+
 
 @app.route("/solve", methods=["POST"])
 def solve():
@@ -51,6 +61,7 @@ def solve():
         "schedule": schedule
     })
 
+
 @app.route("/stop", methods=["POST"])
 def stop():
     set_stop_flag(True)
@@ -66,10 +77,13 @@ def progress():
     })
 
 
-# ---------------- LATIN SQUARE ---------------- #
+# ----------------------------------------------------------------------
+# LATIN SQUARE
+# ----------------------------------------------------------------------
 @app.route("/latin_square")
 def latin_square_page():
     return render_template("latin_square.html")
+
 
 @app.route("/solve_latin", methods=["POST"])
 def solve_latin():
@@ -80,7 +94,6 @@ def solve_latin():
     if depth_limit:
         depth_limit = int(depth_limit)
 
-    import time
     start = time.time()
     solution = latin_square_solver(board, algorithm, depth_limit)
     elapsed = round(time.time() - start, 4)
@@ -88,12 +101,20 @@ def solve_latin():
     if solution:
         return jsonify({"success": True, "solution": solution, "elapsed_time": elapsed})
     else:
-        return jsonify({"success": False, "message": "No solution found within the current depth limit. Increase the limit and try again", "elapsed_time": elapsed})
+        return jsonify({
+            "success": False,
+            "message": "No solution found within the current depth limit. Increase the limit and try again",
+            "elapsed_time": elapsed
+        })
 
-# ---------------- SUDOKU ---------------- #
+
+# ----------------------------------------------------------------------
+# SUDOKU
+# ----------------------------------------------------------------------
 @app.route("/sudoku")
 def sudoku_page():
     return render_template("sudoku.html")
+
 
 @app.get("/generate")
 def sudoku_generate():
@@ -102,8 +123,6 @@ def sudoku_generate():
         level = "easy"
 
     ensure_unique = request.args.get("unique", "0") in {"1", "true", "True"}
-
-
     timeout_ms = request.args.get("timeout_ms", type=int, default=30000)
     timeout_sec = (timeout_ms / 1000.0) if timeout_ms and timeout_ms > 0 else None
 
@@ -112,6 +131,7 @@ def sudoku_generate():
 
     return jsonify({"status": "ok", "level": level, "unique": ensure_unique, "puzzle": puzzle})
 
+
 @app.post("/solve_sudoku")
 def sudoku_solve():
     data = request.get_json(force=True) or {}
@@ -119,9 +139,8 @@ def sudoku_solve():
     if not puzzle:
         return jsonify({"status": "error", "message": "Missing 'puzzle'."}), 400
 
-
     timeout_ms = data.get("timeout_ms", 30000)
-    max_nodes  = data.get("max_nodes", 2_000_000)
+    max_nodes = data.get("max_nodes", 2_000_000)
     timeout_sec = (timeout_ms / 1000.0) if timeout_ms and timeout_ms > 0 else None
 
     solver = SudokuSolver(puzzle)
@@ -129,7 +148,7 @@ def sudoku_solve():
 
     payload = {
         "duration_ms": stats.get("duration_ms"),
-        "timed_out":  stats.get("timed_out", False),
+        "timed_out": stats.get("timed_out", False),
     }
 
     if ok and solution:
@@ -139,5 +158,9 @@ def sudoku_solve():
         payload.update({"status": "error", "message": "Timeout or no solution found"})
         return jsonify(payload), 200
 
+
+# ----------------------------------------------------------------------
+# ENTRY POINT
+# ----------------------------------------------------------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
